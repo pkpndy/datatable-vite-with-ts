@@ -24,12 +24,12 @@ interface Product {
 }
 
 export default function CheckboxRowSelectionDemo() {
-    const [products, setProducts] = useState<Product[]>([]); //all the products are in this
+    const [products, setProducts] = useState<Product[]>([]); // all the products are in this
     const [totalRecords, setTotalRecords] = useState<number>(0); // Total records for paginator
     const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]); // Track selected IDs across pages
-    const [selectedProducts, setSelectedProducts] = useState<Product[] | null>(null);
-    const [rowClick, setRowClick] = useState<boolean>(true);
-    const [loading, setLoading] = useState<boolean>(false);
+    const [selectedProducts, setSelectedProducts] = useState<Product[]>([]); // Track selected products
+    const [rowClick, setRowClick] = useState<boolean>(true); // Toggle between single/multiple selection
+    const [loading, setLoading] = useState<boolean>(false); // Loading state for API fetch
     const rowsPerPage = 12; // Default rows per page
     const [currentPage, setCurrentPage] = useState<number>(1);
 
@@ -71,33 +71,15 @@ export default function CheckboxRowSelectionDemo() {
 
     // Handle page change in DataTable
     const handlePageChange = (event: DataTablePageEvent) => {
-        console.log(event);
         const page = event.page + 1; // PrimeReact uses zero-based pages, so increment by 1
         fetchApiData(page); // Fetch data for the new page
     };
 
-    // Handle row selection across pages
     const handleSelectionChange = (e: DataTableSelectionChangeEvent) => {
-        setSelectedProducts(e.value)
-        console.log("event");
-        console.log(e);
-        const selectedRows = e.value.map((product: Product) => product.id);
-        setSelectedProductIds((prevSelected) => {
-            const newSelection = [...prevSelected, ...selectedRows].filter(
-                (value, index, self) => self.indexOf(value) === index // Ensure no duplicates
-            );
-            return newSelection;
-        });
+        setSelectedProducts(e.value);
+        console.log("e.value");
+        console.log(e.value);
     };
-
-    // Handle row unselection
-    // const handleRowUnselection = (e: DataTableSelectionChangeEvent) => {
-    //     const deselectedRows = e.value.map((product: Product) => product.id);
-    //     setSelectedProductIds(
-    //         (prevSelected) =>
-    //             prevSelected.filter((id) => !deselectedRows.includes(id)) // Remove unselected rows from the state
-    //     );
-    // };
 
     const handleCustomRowSelection = async () => {
         const numToSelect = parseInt(rowInputValue, 10);
@@ -108,9 +90,7 @@ export default function CheckboxRowSelectionDemo() {
 
         let selectedRowCount = 0;
         let page = 1;
-        let newSelectedProductIds: string[] = [];
 
-        // Fetch and select rows until the required number is selected
         while (selectedRowCount < numToSelect) {
             try {
                 const response = await axios.get(
@@ -128,35 +108,31 @@ export default function CheckboxRowSelectionDemo() {
                 }));
 
                 const remainingToSelect = numToSelect - selectedRowCount;
-                const productsToSelect = mappedProducts
+
+                const newSelectedRows = mappedProducts
                     .slice(0, remainingToSelect)
-                    .map((product) => product.id);
+                    .map((row) => row); // Select the first 'numToSelect' rows
 
-                newSelectedProductIds = [
-                    ...newSelectedProductIds,
-                    ...productsToSelect,
-                ];
-                selectedRowCount += productsToSelect.length;
+                // Combine with the already selected rows (assuming `selectedProducts` is an array of already selected IDs)
+                const combinedSelection = new Set([
+                    ...(selectedProducts && selectedProducts.length ? selectedProducts : []), // Current selected rows, if not empty
+                    ...newSelectedRowIds, // Newly selected rows
+                ]);
+                selectedRowCount += combinedSelection.length;
 
-                // Move to next page if more rows need to be selected
+                // Convert the set back to an array and set the selected rows
+                setSelectedProducts({ value: Array.from(combinedSelection) });
+                console.log(selectedProducts);
+
                 page++;
-                setRowInputValue("");
             } catch (error) {
                 console.error("Error fetching data for selection:", error);
                 break;
             }
         }
 
-        // Update state to reflect selected rows across pages
-        setSelectedProductIds((prevSelected) => {
-            const finalSelection = [
-                ...prevSelected,
-                ...newSelectedProductIds,
-            ].filter(
-                (value, index, self) => self.indexOf(value) === index // Ensure no duplicates
-            );
-            return finalSelection;
-        });
+        // Clear the input value after selection
+        setRowInputValue("");
     };
 
     return (
@@ -185,7 +161,10 @@ export default function CheckboxRowSelectionDemo() {
                         setRowInputValue(e.target.value)
                     }
                 />
-                <Button label="Submit" onClick={handleCustomRowSelection} />
+                <Button
+                    label="Submit"
+                    onClick={handleCustomRowSelection}
+                />
             </OverlayPanel>
 
             {loading ? (
@@ -207,13 +186,9 @@ export default function CheckboxRowSelectionDemo() {
                     totalRecords={totalRecords}
                     lazy
                     onPage={handlePageChange} // Handle page change event
-                    selection={selectedProducts!}
-                    // selection={products.filter((product) =>
-                    //     selectedProductIds.includes(product.id)
-                    // )} // Filter selected products
+                    selection={selectedProducts}
                     selectionMode={rowClick ? "single" : "multiple"} // Single or multiple selection based on InputSwitch
                     onSelectionChange={handleSelectionChange} // Handle row selection change
-                    // onUnselect={handleRowUnselection} // Handle row unselection
                     dataKey="id"
                     tableStyle={{ minWidth: "50rem" }}>
                     {!rowClick && (
@@ -234,11 +209,3 @@ export default function CheckboxRowSelectionDemo() {
         </div>
     );
 }
-
-{/* <DataTable
-    value={products}
-    selectionMode={rowClick ? undefined : "multiple"}
-    selection={selectedProducts!}
-    onSelectionChange={(e) => setSelectedProducts(e.value)}
-    dataKey="id"
-    tableStyle={{ minWidth: "50rem" }}></DataTable>; */}

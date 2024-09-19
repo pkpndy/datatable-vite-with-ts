@@ -1,12 +1,13 @@
 import CheckboxRowSelectionDemo from "./components/CheckboxRowSelectionDemo"
+import Trytr from "./components/Trytr"
 
 function App() {
 
   return (
     <>
-      <CheckboxRowSelectionDemo />
+      <Trytr />
     </>
   )
 }
 
-export default App
+export default App;
